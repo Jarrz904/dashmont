@@ -5,13 +5,13 @@ import Sidebar from '@/components/Sidebar';
 import DonutChartHero from '@/components/DonutChartHero';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
-import { 
-  Plus, Trash2, Calendar, Clock, Database, Layers, 
+import {
+  Plus, Trash2, Calendar, Clock, Database, Layers,
   TrendingUp, BarChart3, Edit3, Save, X, CheckCircle2, AlertCircle,
   PieChart as PieIcon, ClipboardList, Activity, ShieldCheck, ShieldAlert
 } from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend
 } from 'recharts';
 
@@ -19,7 +19,7 @@ export default function DashboardPage() {
   const [currentPage, setCurrentPage] = useState('Dashboard');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mounted, setMounted] = useState(false);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -27,10 +27,10 @@ export default function DashboardPage() {
   const [verifyModal, setVerifyModal] = useState({ show: false, data: null });
 
   const [laporanList, setLaporanList] = useState([]);
-  const [kategoriData, setKategoriData] = useState([]); 
-  const [layananData, setLayananData] = useState([]);  
+  const [kategoriData, setKategoriData] = useState([]);
+  const [layananData, setLayananData] = useState([]);
 
-  const [form, setForm] = useState({ 
+  const [form, setForm] = useState({
     kategori: 'Pendaftaran Penduduk',
     layanan: 'Perekaman KTP',
     jumlahOrang: '',
@@ -63,7 +63,7 @@ export default function DashboardPage() {
         jumlahOrang: item.jumlah,
         tanggalFull: item.tanggal,
         jam: item.jam,
-        isVerified: item.is_verified 
+        isVerified: item.is_verified
       }));
       setLaporanList(formatted);
     }
@@ -91,11 +91,11 @@ export default function DashboardPage() {
   const getStatsPerLayanan = (layananNama) => {
     const items = laporanList.filter(l => l.layanan === layananNama);
     const total = items.reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    
+
     const verified = items
       .filter(i => i.isVerified)
       .reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-      
+
     const unverified = items
       .filter(i => !i.isVerified)
       .reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
@@ -132,36 +132,36 @@ export default function DashboardPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if(!form.jumlahOrang) return;
+    if (!form.jumlahOrang) return;
     const selectedLayananObj = layananData.find(l => l.nama === form.layanan);
     if (!selectedLayananObj) return;
 
     if (isEditing) {
-      const { error } = await supabase.from('isi_data').update({ 
-        id_jenis_data: selectedLayananObj.id, 
-        jumlah: Number(form.jumlahOrang) 
+      const { error } = await supabase.from('isi_data').update({
+        id_jenis_data: selectedLayananObj.id,
+        jumlah: Number(form.jumlahOrang)
       }).eq('id', editId);
-      
-      if (!error) { 
-        showToast('Data diperbarui!'); 
-        await fetchLaporan(); 
-        setIsEditing(false); 
-        setEditId(null); 
-        setForm({ ...form, jumlahOrang: '' }); 
+
+      if (!error) {
+        showToast('Data diperbarui!');
+        await fetchLaporan();
+        setIsEditing(false);
+        setEditId(null);
+        setForm({ ...form, jumlahOrang: '' });
       } else {
         showToast('Gagal memperbarui data', 'error');
       }
     } else {
-      const { error } = await supabase.from('isi_data').insert([{ 
-        id_jenis_data: selectedLayananObj.id, 
-        jumlah: Number(form.jumlahOrang), 
-        is_verified: false 
+      const { error } = await supabase.from('isi_data').insert([{
+        id_jenis_data: selectedLayananObj.id,
+        jumlah: Number(form.jumlahOrang),
+        is_verified: false
       }]);
-      
-      if (!error) { 
-        showToast('Data disimpan!'); 
-        await fetchLaporan(); 
-        setForm({ ...form, jumlahOrang: '' }); 
+
+      if (!error) {
+        showToast('Data disimpan!');
+        await fetchLaporan();
+        setForm({ ...form, jumlahOrang: '' });
       } else {
         showToast('Gagal menyimpan data', 'error');
       }
@@ -170,27 +170,27 @@ export default function DashboardPage() {
 
   const confirmDelete = async () => {
     const { error } = await supabase.from('isi_data').delete().eq('id', deleteModal.id);
-    if (!error) { 
-      showToast('Data dihapus', 'error'); 
-      await fetchLaporan(); 
+    if (!error) {
+      showToast('Data dihapus', 'error');
+      await fetchLaporan();
     }
     setDeleteModal({ show: false, id: null });
   };
 
   const handleConfirmVerify = async () => {
     if (!verifyModal.data || !verifyModal.data.id) return;
-    
+
     try {
       const { error } = await supabase
         .from('isi_data')
         .update({ is_verified: true })
         .eq('id', verifyModal.data.id)
-        .select(); 
+        .select();
 
       if (error) throw error;
 
       showToast('Data Berhasil Diverifikasi!');
-      await fetchLaporan(); 
+      await fetchLaporan();
     } catch (error) {
       console.error("Error verifikasi:", error);
       showToast('Gagal verifikasi database', 'error');
@@ -208,13 +208,12 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen w-full bg-[#0d1117] overflow-hidden text-white font-sans relative">
       <Sidebar setCurrentPage={setCurrentPage} currentPage={currentPage} />
-      
+
       {/* TOAST */}
       <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[200] w-full max-w-md px-4 pointer-events-none">
         {toast.show && (
-          <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md animate-bounce pointer-events-auto ${
-            toast.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-red-500/20 border-red-500/50 text-red-400'
-          }`}>
+          <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md animate-bounce pointer-events-auto ${toast.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-red-500/20 border-red-500/50 text-red-400'
+            }`}>
             {toast.type === 'success' ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
             <span className="font-black text-sm tracking-widest uppercase">{toast.message}</span>
           </div>
@@ -252,7 +251,7 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
         <div className="max-w-[1440px] mx-auto">
-          
+
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-slate-900/80 p-6 rounded-3xl border border-white/20 gap-4 shadow-xl">
             <div className="space-y-2">
               <h1 className="text-3xl font-black text-white tracking-tighter uppercase tracking-[0.2em]">Sistem Monitoring</h1>
@@ -265,23 +264,23 @@ export default function DashboardPage() {
                 </span>
               </div>
             </div>
-            
+
             <div className="bg-slate-800 border border-slate-500 p-4 rounded-2xl flex items-center gap-6 shadow-2xl">
-               <div className="text-right">
-                  <p className="text-xs text-white font-black uppercase tracking-widest mb-1">Total Pengajuan</p>
-                  <p className="text-4xl font-black text-cyan-400 leading-none">
-                    {laporanList.reduce((a, b) => a + Number(b.jumlahOrang), 0)}
-                  </p>
-               </div>
-               <div className="bg-cyan-500/20 p-3 rounded-xl text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                  <Activity size={28} />
-               </div>
+              <div className="text-right">
+                <p className="text-xs text-white font-black uppercase tracking-widest mb-1">Total Pengajuan</p>
+                <p className="text-4xl font-black text-cyan-400 leading-none">
+                  {laporanList.reduce((a, b) => a + Number(b.jumlahOrang), 0)}
+                </p>
+              </div>
+              <div className="bg-cyan-500/20 p-3 rounded-xl text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                <Activity size={28} />
+              </div>
             </div>
           </header>
 
           {currentPage === 'Dashboard' ? (
             <div className="space-y-8 animate-in fade-in duration-700">
-              
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-[#161b22] p-8 rounded-[2rem] border border-slate-600 shadow-2xl">
                   <div className="flex items-center justify-between mb-8">
@@ -299,8 +298,8 @@ export default function DashboardPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#475569" vertical={false} />
                         <XAxis dataKey="name" stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
                         <YAxis stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
-                        <Tooltip 
-                          cursor={{fill: 'rgba(255,255,255,0.08)'}}
+                        <Tooltip
+                          cursor={{ fill: 'rgba(255,255,255,0.08)' }}
                           contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #22d3ee', borderRadius: '15px', color: '#fff' }}
                         />
                         <Bar dataKey="total" fill="#22d3ee" radius={[8, 8, 0, 0]} barSize={50} />
@@ -328,7 +327,7 @@ export default function DashboardPage() {
                           ))}
                         </Pie>
                         <Tooltip />
-                        <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{paddingTop: '20px', fontSize: '11px', fontWeight: 'bold', color: '#fff'}} />
+                        <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold', color: '#fff' }} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-20px]">
@@ -364,25 +363,49 @@ export default function DashboardPage() {
                         const stats = getStatsPerLayanan(lay.nama);
                         return (
                           <tr key={lay.id} className="hover:bg-white/[0.06] transition-all group">
+                            {/* JENIS LAYANAN */}
                             <td className="p-6">
-                              <span className="font-black text-base text-white group-hover:text-cyan-400 transition-colors uppercase tracking-tight">{lay.nama}</span>
+                              <span className="font-black text-base text-white group-hover:text-cyan-400 transition-colors uppercase tracking-tight">
+                                {lay.nama}
+                              </span>
                             </td>
-                            <td className="p-6 text-xs font-black text-white">
-                              {kategoriData.find(k => k.id === lay.id_kelompok_data)?.nama || '-'}
+
+                            {/* KELOMPOK DATA */}
+                            <td className="p-6">
+                              <span className="font-black text-base text-white uppercase tracking-tight">
+                                {kategoriData.find(k => k.id === lay.id_kelompok_data)?.nama || '-'}
+                              </span>
                             </td>
+
+                            {/* TOTAL AJUAN */}
                             <td className="p-6 text-center">
                               <span className={`px-6 py-2.5 rounded-xl text-lg font-black font-mono border ${stats.total > 0 ? 'bg-cyan-500/40 text-white border-cyan-400' : 'bg-slate-800 text-white/40 border-slate-700'}`}>
                                 {stats.total}
                               </span>
                             </td>
+
+                            {/* RINCIAN AJUAN - Teks Putih Jelas & Container Transparan */}
                             <td className="p-6 text-right">
                               <div className="flex flex-col items-end gap-2">
-                                <span className="inline-flex items-center gap-2 text-[11px] font-black text-white uppercase bg-emerald-600/90 px-4 py-1.5 rounded-lg border border-emerald-400 shadow-sm w-fit">
-                                  <CheckCircle2 size={14} /> {stats.verified} Sudah Verifikasi
-                                </span>
-                                <span className="inline-flex items-center gap-2 text-[11px] font-black text-white uppercase bg-amber-600/90 px-4 py-1.5 rounded-lg border border-amber-400 shadow-sm w-fit">
-                                  <ShieldAlert size={14} /> {stats.unverified} Belum Verifikasi
-                                </span>
+                                {/* Item Sudah Verifikasi */}
+                                <div className="flex items-center justify-between gap-6 min-w-[210px] px-4 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
+                                  <span className="flex items-center gap-2 text-[11px] font-black text-white uppercase tracking-wider">
+                                    <CheckCircle2 size={14} className="text-emerald-400" /> Sudah Verifikasi
+                                  </span>
+                                  <span className="text-base font-black text-white font-mono">
+                                    {stats.verified}
+                                  </span>
+                                </div>
+
+                                {/* Item Belum Verifikasi */}
+                                <div className="flex items-center justify-between gap-6 min-w-[210px] px-4 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                                  <span className="flex items-center gap-2 text-[11px] font-black text-white uppercase tracking-wider">
+                                    <ShieldAlert size={14} className="text-amber-400" /> Belum Verifikasi
+                                  </span>
+                                  <span className="text-base font-black text-white font-mono">
+                                    {stats.unverified}
+                                  </span>
+                                </div>
                               </div>
                             </td>
                           </tr>
@@ -399,11 +422,11 @@ export default function DashboardPage() {
               <section className={`bg-[#161b22] p-8 rounded-3xl border transition-all duration-300 shadow-2xl ${isEditing ? 'border-amber-500 bg-amber-500/10' : 'border-slate-600'}`}>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className={`text-2xl font-black flex items-center gap-3 ${isEditing ? 'text-amber-400' : 'text-cyan-400'}`}>
-                    {isEditing ? <Edit3 size={26} /> : <Layers size={26} />} 
+                    {isEditing ? <Edit3 size={26} /> : <Layers size={26} />}
                     {isEditing ? 'UPDATE DATA LAYANAN' : 'TAMBAH DATA BARU'}
                   </h2>
                   {isEditing && (
-                    <button onClick={() => { setIsEditing(false); setEditId(null); setForm({...form, jumlahOrang: ''}); }} className="text-xs font-black text-white flex items-center gap-2 bg-slate-700 hover:bg-red-600 px-4 py-2 rounded-xl transition-all border border-slate-500">
+                    <button onClick={() => { setIsEditing(false); setEditId(null); setForm({ ...form, jumlahOrang: '' }); }} className="text-xs font-black text-white flex items-center gap-2 bg-slate-700 hover:bg-red-600 px-4 py-2 rounded-xl transition-all border border-slate-500">
                       <X size={14} /> BATAL EDIT
                     </button>
                   )}
@@ -418,13 +441,13 @@ export default function DashboardPage() {
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-black text-white block uppercase tracking-wider">Jenis Layanan</label>
-                    <select value={form.layanan} onChange={(e) => setForm({...form, layanan: e.target.value})} className="w-full bg-[#0d1117] border border-slate-500 p-4 rounded-xl text-white font-black text-sm outline-none focus:border-cyan-400 transition-all cursor-pointer">
+                    <select value={form.layanan} onChange={(e) => setForm({ ...form, layanan: e.target.value })} className="w-full bg-[#0d1117] border border-slate-500 p-4 rounded-xl text-white font-black text-sm outline-none focus:border-cyan-400 transition-all cursor-pointer">
                       {availableLayanan.map(lay => <option key={lay.id} value={lay.nama} className="bg-[#0d1117]">{lay.nama}</option>)}
                     </select>
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-black text-white block uppercase tracking-wider">Jumlah Ajuan</label>
-                    <input type="number" required placeholder="0" value={form.jumlahOrang} onChange={(e) => setForm({...form, jumlahOrang: e.target.value})} className="w-full bg-[#0d1117] border border-slate-500 p-4 rounded-xl text-white font-black text-sm outline-none focus:border-cyan-400 transition-all placeholder:text-slate-600" />
+                    <input type="number" required placeholder="0" value={form.jumlahOrang} onChange={(e) => setForm({ ...form, jumlahOrang: e.target.value })} className="w-full bg-[#0d1117] border border-slate-500 p-4 rounded-xl text-white font-black text-sm outline-none focus:border-cyan-400 transition-all placeholder:text-slate-600" />
                   </div>
                   <button type="submit" className={`font-black h-[56px] rounded-xl transition-all flex items-center justify-center gap-2 shadow-xl text-sm uppercase tracking-widest border border-white/20 ${isEditing ? 'bg-amber-500 text-black hover:bg-amber-400 shadow-amber-500/20' : 'bg-cyan-500 text-[#0d1117] hover:bg-cyan-400 shadow-cyan-500/20'}`}>
                     {isEditing ? <Save size={20} /> : <Plus size={20} />} {isEditing ? 'UPDATE DATA' : 'SIMPAN DATA'}
@@ -448,8 +471,13 @@ export default function DashboardPage() {
                       <tr key={item.id} className="hover:bg-white/[0.06] transition-all group">
                         <td className="p-6">
                           <div className="flex flex-col gap-2">
-                            <span className="text-[10px] w-fit bg-cyan-600 border border-cyan-400 px-3 py-1 rounded-lg text-white font-black uppercase shadow-sm">{item.kategori}</span>
-                            <span className="text-xs text-white font-black">{item.tanggalFull} • {item.jam}</span>
+                            <span className="text-[10px] w-fit bg-cyan-600 border border-cyan-400 px-3 py-1 rounded-lg text-white font-black uppercase shadow-sm">
+                              {item.kategori}
+                            </span>
+                            <span className="text-xs text-white font-black">
+                              {/* Menggunakan slice untuk mengambil HH:mm saja */}
+                              {item.tanggalFull} • {item.jam.slice(0, 5)}
+                            </span>
                           </div>
                         </td>
                         <td className="p-6 font-black text-white uppercase text-base tracking-tight">{item.layanan}</td>
@@ -470,7 +498,7 @@ export default function DashboardPage() {
                         <td className="p-6 text-right">
                           <div className="flex justify-end gap-3">
                             {!item.isVerified && (
-                              <button 
+                              <button
                                 onClick={() => handleVerify(item)}
                                 title="Verifikasi Data"
                                 className="bg-emerald-600 text-white border border-emerald-400 hover:bg-emerald-500 p-2.5 rounded-xl transition-all shadow-lg active:scale-95"
