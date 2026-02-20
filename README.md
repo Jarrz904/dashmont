@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Monitoring System Dashboard (Real-time Analytics)
 
-## Getting Started
+Sistem Dashboard Monitoring modern yang dirancang untuk mengelola, memverifikasi, dan memvisualisasikan data pengajuan layanan publik secara real-time. Dibangun dengan **Next.js**, **Tailwind CSS**, dan **Supabase** untuk performa tinggi dan antarmuka yang intuitif.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 📸 Preview Antarmuka
+- **High-Contrast Dark Mode**: Desain futuristik dengan tema gelap yang nyaman di mata.
+- **Visualisasi Data**: Grafik batang dan lingkaran (Donut Chart) yang interaktif menggunakan Recharts.
+- **Tabel Rekapitulasi**: Ringkasan status verifikasi yang bersih dan mudah dibaca.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Fitur Utama
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Dashboard Analitik
+* **Total Pengajuan Kontra**: Menampilkan jumlah total ajuan secara akumulatif.
+* **Grafik Kelompok Data**: Visualisasi jumlah ajuan per kategori untuk melihat tren distribusi data.
+* **Real-time Clock & Calendar**: Monitoring waktu presisi di header dashboard.
+* **Status Si Pandu**: Indikator status sistem online dalam bentuk chart lingkaran.
 
-## Learn More
+### 2. Manajemen Data (CRUD)
+* **Tambah Data**: Form input dinamis untuk menambah ajuan baru berdasarkan kategori dan jenis layanan.
+* **Update Data**: Kemampuan untuk menyunting data yang salah input dengan mode pengeditan yang responsif.
+* **Hapus Data**: Fitur penghapusan dengan modal konfirmasi keamanan.
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Sistem Verifikasi
+* **Verifikasi Satu Klik**: Admin dapat memvalidasi data yang masuk secara langsung.
+* **Indikator Status**: Label visual yang jelas antara data yang "Terverifikasi" dan "Belum Ok".
+* **Rekapitulasi Layanan**: Tabel khusus yang merangkum perbandingan jumlah data yang sudah vs belum diverifikasi per jenis layanan.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 4. User Experience (UX)
+* **Toast Notifications**: Notifikasi pop-up yang muncul saat berhasil/gagal melakukan aksi.
+* **Modal Dialog**: Konfirmasi untuk tindakan krusial (hapus/verifikasi) guna mencegah kesalahan user.
+* **Responsive Design**: Layout yang adaptif untuk berbagai ukuran layar (Desktop & Mobile).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🏗️ Teknologi yang Digunakan
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Komponen | Teknologi |
+| :--- | :--- |
+| **Framework** | Next.js 14 (App Router) |
+| **Styling** | Tailwind CSS |
+| **Database & Auth** | Supabase |
+| **Icons** | Lucide React |
+| **Charts** | Recharts |
+| **Animation** | Tailwind Animate & Framer Motion (optional) |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🚀 Cara Menjalankan Proyek Secara Lokal
+
+1.  **Clone Repositori**
+    ```bash
+    git clone [https://github.com/Jarrz904/Dashboard_Monitoring.git](https://github.com/Jarrz904/Dashboard_Monitoring.git)
+    cd Dashboard_Monitoring
+    ```
+
+2.  **Instal Dependensi**
+    ```bash
+    npm install
+    ```
+
+3.  **Konfigurasi Environment Variable**
+    Buat file `.env.local` di root folder dan isi dengan kredensial Supabase Anda:
+    ```env
+    NEXT_PUBLIC_SUPABASE_URL=your_project_url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+    ```
+
+4.  **Jalankan Server Development**
+    ```bash
+    npm run dev
+    ```
+    Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
+
+---
+
+## 📊 Struktur Database (Supabase)
+
+Proyek ini menggunakan 3 tabel utama:
+1.  **kelompok_data**: Menyimpan kategori utama (Contoh: Pendaftaran Penduduk, Pencatatan Sipil).
+2.  **jenis_data**: Menyimpan sub-layanan yang terikat pada kelompok data.
+3.  **isi_data**: Tabel transaksi yang menyimpan jumlah ajuan, tanggal, jam, dan status verifikasi.
+
+---
+
+## 🤝 Kontribusi
+
+Kontribusi selalu terbuka! Jika Anda memiliki saran atau ingin meningkatkan fitur, silakan buat *Pull Request* atau buka *Issue*.
+
+---
+
+Disusun dengan ❤️ oleh [Jarrz904](https://github.com/Jarrz904)
