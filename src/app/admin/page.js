@@ -8,7 +8,8 @@ import { supabase } from '@/lib/supabase';
 import {
   Plus, Trash2, Calendar, Clock, Database, Layers,
   TrendingUp, BarChart3, Edit3, Save, X, CheckCircle2, AlertCircle,
-  PieChart as PieIcon, ClipboardList, Activity, ShieldCheck, ShieldAlert
+  PieChart as PieIcon, ClipboardList, Activity, ShieldCheck, ShieldAlert, Loader2,
+  RefreshCw
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -35,6 +36,20 @@ export default function DashboardPage() {
     layanan: 'Perekaman KTP',
     jumlahOrang: '',
   });
+
+  // --- LOGIKA PENGURUTAN LAYANAN ---
+  const sortedLayananData = useMemo(() => {
+    const orderPriority = { 
+      'Informasi Umum': 1, 
+      'Pencatatan Sipil': 2, 
+      'Pendaftaran Penduduk': 3 
+    };
+    return [...layananData].sort((a, b) => {
+      const katA = kategoriData.find(k => k.id === a.id_kelompok_data)?.nama || 'Z';
+      const katB = kategoriData.find(k => k.id === b.id_kelompok_data)?.nama || 'Z';
+      return (orderPriority[katA] || 99) - (orderPriority[katB] || 99);
+    });
+  }, [layananData, kategoriData]);
 
   // --- FUNGSI FETCH ---
   const fetchInitialData = useCallback(async () => {
@@ -88,19 +103,25 @@ export default function DashboardPage() {
     return selectedKatObj ? layananData.filter(l => l.id_kelompok_data === selectedKatObj.id) : [];
   }, [form.kategori, kategoriData, layananData]);
 
+  // LOGIKA PENGECUALIAN STATISTIK
   const getStatsPerLayanan = (layananNama) => {
     const items = laporanList.filter(l => l.layanan === layananNama);
+    const katNama = items.length > 0 ? items[0].kategori : '';
     const total = items.reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
 
-    const verified = items
+    const isExcluded = layananNama === 'Aktivasi IKD' || 
+                       layananNama === 'Blanko KTP' || 
+                       katNama === 'Informasi Umum';
+
+    const verified = isExcluded ? 0 : items
       .filter(i => i.isVerified)
       .reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
 
-    const unverified = items
+    const unverified = isExcluded ? 0 : items
       .filter(i => !i.isVerified)
       .reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
 
-    return { total, verified, unverified };
+    return { total, verified, unverified, isExcluded };
   };
 
   const getTotalPerGrup = (grupName) => {
@@ -116,15 +137,16 @@ export default function DashboardPage() {
     }));
   }, [laporanList, kategoriData]);
 
-  // --- PERBAIKAN DIAGRAM LINGKARAN ---
   const siPanduData = useMemo(() => {
-    const totalVerified = laporanList.filter(l => l.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const totalUnverified = laporanList.filter(l => !l.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    
+    const totalDiProses = laporanList.filter(l => l.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const totalBelumDiProses = laporanList.filter(l => !l.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const totalTerbitTTE = 0;
+
     return [
-      { name: 'Terverifikasi', value: totalVerified, color: '#10b981' },
-      { name: 'Belum', value: totalUnverified, color: '#f59e0b' },
-    ].filter(item => item.value > 0); // Sembunyikan jika tidak ada data
+      { name: 'Di Proses', value: totalDiProses, color: '#3b82f6' },
+      { name: 'Belum Di Proses', value: totalBelumDiProses, color: '#f59e0b' },
+      { name: 'Terbit TTE', value: totalTerbitTTE, color: '#10b981' }
+    ];
   }, [laporanList]);
 
   const totalAjuan = laporanList.reduce((a, b) => a + Number(b.jumlahOrang), 0);
@@ -196,11 +218,11 @@ export default function DashboardPage() {
 
       if (error) throw error;
 
-      showToast('Data Berhasil Diverifikasi!');
+      showToast('Data Berhasil Diproses!');
       await fetchLaporan();
     } catch (error) {
-      console.error("Error verifikasi:", error);
-      showToast('Gagal verifikasi database', 'error');
+      console.error("Error proses:", error);
+      showToast('Gagal memproses ke database', 'error');
     } finally {
       setVerifyModal({ show: false, data: null });
     }
@@ -216,7 +238,6 @@ export default function DashboardPage() {
     <div className="flex h-screen w-full bg-[#0d1117] overflow-hidden text-white font-sans relative">
       <Sidebar setCurrentPage={setCurrentPage} currentPage={currentPage} />
 
-      {/* TOAST, DELETE MODAL, VERIFY MODAL (Tetap sama) */}
       <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[200] w-full max-w-md px-4 pointer-events-none">
         {toast.show && (
           <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md animate-bounce pointer-events-auto ${toast.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-red-500/20 border-red-500/50 text-red-400'
@@ -242,13 +263,13 @@ export default function DashboardPage() {
 
       {verifyModal.show && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#161b22] border border-emerald-500/50 p-8 rounded-3xl max-w-md w-full shadow-2xl">
-            <div className="text-emerald-500 mb-6 flex justify-center"><ShieldCheck size={56} /></div>
-            <h3 className="text-2xl font-black text-white text-center mb-2">Verifikasi Data</h3>
-            <p className="text-white text-center mb-6 text-sm">Apakah Anda yakin ingin memverifikasi layanan <span className="text-emerald-400 font-bold underline">{verifyModal.data?.layanan}</span> dengan total <span className="text-cyan-400 font-bold">{verifyModal.data?.jumlahOrang} ajuan</span>?</p>
+          <div className="bg-[#161b22] border border-blue-500/50 p-8 rounded-3xl max-w-md w-full shadow-2xl">
+            <div className="text-blue-500 mb-6 flex justify-center"><RefreshCw size={56} className="animate-spin-slow" /></div>
+            <h3 className="text-2xl font-black text-white text-center mb-2">Proses Data</h3>
+            <p className="text-white text-center mb-6 text-sm">Apakah Anda yakin ingin mulai memproses layanan <span className="text-blue-400 font-bold underline">{verifyModal.data?.layanan}</span>?</p>
             <div className="flex gap-3">
               <button onClick={() => setVerifyModal({ show: false, data: null })} className="flex-1 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 font-bold text-white transition-colors border border-slate-500">BATAL</button>
-              <button onClick={handleConfirmVerify} className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black transition-colors border border-emerald-400 shadow-lg uppercase">VERIFIKASI SEKARANG</button>
+              <button onClick={handleConfirmVerify} className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black transition-colors border border-blue-400 shadow-lg uppercase">PROSES SEKARANG</button>
             </div>
           </div>
         </div>
@@ -256,7 +277,6 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
         <div className="max-w-[1440px] mx-auto">
-          {/* HEADER (Tetap sama) */}
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-slate-900/80 p-6 rounded-3xl border border-white/20 gap-4 shadow-xl">
             <div className="space-y-2">
               <h1 className="text-3xl font-black text-white tracking-tighter uppercase tracking-[0.2em]">Sistem Monitoring</h1>
@@ -285,7 +305,6 @@ export default function DashboardPage() {
           {currentPage === 'Dashboard' ? (
             <div className="space-y-8 animate-in fade-in duration-700">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* GRAFIK BAR (Tetap sama) */}
                 <div className="lg:col-span-2 bg-[#161b22] p-8 rounded-[2rem] border border-slate-600 shadow-2xl">
                   <div className="flex items-center justify-between mb-8">
                     <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-3">
@@ -305,10 +324,9 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* PIE CHART TERBARU */}
                 <div className="bg-[#161b22] p-8 rounded-[2rem] border border-slate-600 shadow-2xl">
                   <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8 flex items-center gap-3">
-                    <PieIcon size={20} className="text-pink-400" /> Verifikasi Status
+                    <PieIcon size={20} className="text-pink-400" /> Status Pengerjaan
                   </h3>
                   <div className="h-[250px] relative">
                     <ResponsiveContainer width="100%" height="100%">
@@ -324,26 +342,42 @@ export default function DashboardPage() {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip />
-                        <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold', color: '#fff' }} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#0d1117',
+                            border: '1px solid #475569',
+                            borderRadius: '10px',
+                            color: '#ffffff'
+                          }}
+                          itemStyle={{ color: '#ffffff' }}
+                        />
+                        <Legend
+                          iconType="circle"
+                          verticalAlign="bottom"
+                          wrapperStyle={{
+                            paddingTop: '20px',
+                            fontSize: '10px',
+                            fontWeight: '900',
+                            color: '#ffffff',
+                            textTransform: 'uppercase'
+                          }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-20px]">
                       <span className="text-2xl font-black text-white">{totalAjuan}</span>
-                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-tighter">Total Ajuan</span>
+                      <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-tighter">Total</span>
                     </div>
                   </div>
                 </div>
               </div>
-              
-               {/* SECTION: TABEL STATUS LAYANAN */}
+
               <div className="bg-[#161b22] rounded-[2rem] border border-slate-600 overflow-hidden shadow-2xl">
                 <div className="p-8 border-b border-slate-600 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <h3 className="text-xl font-black text-white flex items-center gap-3 uppercase">
-                      <ClipboardList size={22} className="text-emerald-400" /> Rekap Verifikasi Layanan
+                      <ClipboardList size={22} className="text-emerald-400" /> Rekap Proses Layanan
                     </h3>
-                    <p className="text-sm text-cyan-300 font-bold mt-1 uppercase tracking-tight">Akumulasi jumlah ajuan yang telah divalidasi</p>
                   </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -353,58 +387,46 @@ export default function DashboardPage() {
                         <th className="p-6">Jenis Layanan</th>
                         <th className="p-6">Kelompok Data</th>
                         <th className="p-6 text-center">Total Ajuan</th>
-                        <th className="p-6 text-right">Rincian Ajuan</th>
+                        <th className="p-6 text-right">Rincian Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-600">
-                      {layananData.map((lay) => {
+                      {sortedLayananData.map((lay) => {
                         const stats = getStatsPerLayanan(lay.nama);
                         return (
                           <tr key={lay.id} className="hover:bg-white/[0.06] transition-all group">
-                            {/* JENIS LAYANAN */}
                             <td className="p-6">
                               <span className="font-black text-base text-white group-hover:text-cyan-400 transition-colors uppercase tracking-tight">
                                 {lay.nama}
                               </span>
                             </td>
-
-                            {/* KELOMPOK DATA */}
                             <td className="p-6">
                               <span className="font-black text-base text-white uppercase tracking-tight">
                                 {kategoriData.find(k => k.id === lay.id_kelompok_data)?.nama || '-'}
                               </span>
                             </td>
-
-                            {/* TOTAL AJUAN */}
                             <td className="p-6 text-center">
                               <span className={`px-6 py-2.5 rounded-xl text-lg font-black font-mono border ${stats.total > 0 ? 'bg-cyan-500/40 text-white border-cyan-400' : 'bg-slate-800 text-white/40 border-slate-700'}`}>
                                 {stats.total}
                               </span>
                             </td>
-
-                            {/* RINCIAN AJUAN - Teks Putih Jelas & Container Transparan */}
                             <td className="p-6 text-right">
-                              <div className="flex flex-col items-end gap-2">
-                                {/* Item Sudah Verifikasi */}
-                                <div className="flex items-center justify-between gap-6 min-w-[210px] px-4 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
-                                  <span className="flex items-center gap-2 text-[11px] font-black text-white uppercase tracking-wider">
-                                    <CheckCircle2 size={14} className="text-emerald-400" /> Sudah Verifikasi
-                                  </span>
-                                  <span className="text-base font-black text-white font-mono">
-                                    {stats.verified}
-                                  </span>
+                              {!stats.isExcluded && (
+                                <div className="flex flex-col items-end gap-2">
+                                  <div className="flex items-center justify-between gap-6 min-w-[210px] px-4 py-2 rounded-xl border border-blue-500/30 bg-blue-500/10">
+                                    <span className="flex items-center gap-2 text-[11px] font-black text-white uppercase tracking-wider">
+                                      <RefreshCw size={14} className="text-blue-400" /> Di Proses
+                                    </span>
+                                    <span className="text-base font-black text-white font-mono">{stats.verified}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-6 min-w-[210px] px-4 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                                    <span className="flex items-center gap-2 text-[11px] font-black text-white uppercase tracking-wider">
+                                      <ShieldAlert size={14} className="text-amber-400" /> Belum Di Proses
+                                    </span>
+                                    <span className="text-base font-black text-white font-mono">{stats.unverified}</span>
+                                  </div>
                                 </div>
-
-                                {/* Item Belum Verifikasi */}
-                                <div className="flex items-center justify-between gap-6 min-w-[210px] px-4 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
-                                  <span className="flex items-center gap-2 text-[11px] font-black text-white uppercase tracking-wider">
-                                    <ShieldAlert size={14} className="text-amber-400" /> Belum Verifikasi
-                                  </span>
-                                  <span className="text-base font-black text-white font-mono">
-                                    {stats.unverified}
-                                  </span>
-                                </div>
-                              </div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -415,7 +437,6 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            /* PAGE INPUT DATA */
             <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
               <section className={`bg-[#161b22] p-8 rounded-3xl border transition-all duration-300 shadow-2xl ${isEditing ? 'border-amber-500 bg-amber-500/10' : 'border-slate-600'}`}>
                 <div className="flex justify-between items-center mb-6">
@@ -473,7 +494,6 @@ export default function DashboardPage() {
                               {item.kategori}
                             </span>
                             <span className="text-xs text-white font-black">
-                              {/* Menggunakan slice untuk mengambil HH:mm saja */}
                               {item.tanggalFull} • {item.jam.slice(0, 5)}
                             </span>
                           </div>
@@ -484,12 +504,12 @@ export default function DashboardPage() {
                         </td>
                         <td className="p-6 text-center">
                           {item.isVerified ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-white uppercase bg-emerald-600 px-3 py-1 rounded-lg border border-emerald-400 shadow-sm">
-                              <CheckCircle2 size={12} /> Terverifikasi
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-white uppercase bg-blue-600 px-3 py-1 rounded-lg border border-blue-400 shadow-sm">
+                              <RefreshCw size={12} /> Di Proses
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-white uppercase bg-red-600 px-3 py-1 rounded-lg border border-red-400 shadow-sm">
-                              <AlertCircle size={12} /> Belum Ok
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-white uppercase bg-amber-600 px-3 py-1 rounded-lg border border-amber-400 shadow-sm">
+                              <Loader2 size={12} className="animate-spin" /> Belum Di Proses
                             </span>
                           )}
                         </td>
@@ -498,10 +518,10 @@ export default function DashboardPage() {
                             {!item.isVerified && (
                               <button
                                 onClick={() => handleVerify(item)}
-                                title="Verifikasi Data"
-                                className="bg-emerald-600 text-white border border-emerald-400 hover:bg-emerald-500 p-2.5 rounded-xl transition-all shadow-lg active:scale-95"
+                                title="Proses Layanan"
+                                className="bg-blue-600 text-white border border-blue-400 hover:bg-blue-500 p-2.5 rounded-xl transition-all shadow-lg active:scale-95"
                               >
-                                <ShieldCheck size={20} />
+                                <RefreshCw size={20} />
                               </button>
                             )}
                             <button onClick={() => { setIsEditing(true); setEditId(item.id); setForm({ kategori: item.kategori, layanan: item.layanan, jumlahOrang: item.jumlahOrang }); }} className="text-white hover:text-white p-2.5 bg-slate-700 hover:bg-amber-600 rounded-xl border border-slate-500 transition-all shadow-lg active:scale-95"><Edit3 size={20} /></button>

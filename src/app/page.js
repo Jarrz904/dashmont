@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  Calendar, Clock, BarChart3, PieChart as PieIcon, 
-  ClipboardList, Activity, CheckCircle2, ShieldAlert, Loader2
+  BarChart3, PieChart as PieIcon, 
+  ClipboardList, Activity, Loader2, ShieldAlert
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -12,14 +12,12 @@ import {
 } from 'recharts';
 
 export default function UserDashboard() {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [mounted, setMounted] = useState(false);
   
   const [laporanList, setLaporanList] = useState([]);
   const [kategoriData, setKategoriData] = useState([]); 
   const [layananData, setLayananData] = useState([]);   
 
-  // --- FUNGSI FETCH ---
   const fetchInitialData = useCallback(async () => {
     const { data: kat } = await supabase.from('kelompok_data').select('*');
     if (kat) setKategoriData(kat);
@@ -33,31 +31,19 @@ export default function UserDashboard() {
       .from('isi_data')
       .select(`
         id, jumlah, tanggal, jam, is_verified,
-        jenis_data ( id, nama, kelompok_data ( id, nama ) )
+        jenis_data ( id, nama, id_kelompok_data, kelompok_data ( id, nama ) )
       `)
       .order('id', { ascending: false });
 
     if (!error && data) {
       const formatted = data.map(item => {
-        // Logika penentuan status untuk 3 kategori
-        let status = 'Belum Diproses';
-        if (item.is_verified) {
-          status = 'Terbit TTE';
-        } else {
-          // Simulasi: Jika ID genap dianggap sedang diproses, jika ganjil belum diproses
-          // Anda bisa mengganti ini dengan kolom 'status' jika sudah ada di DB
-          status = item.id % 2 === 0 ? 'Diproses' : 'Belum Diproses';
-        }
-
+        const status = item.is_verified ? 'Diproses' : 'Belum Diproses';
         return {
           id: item.id,
           id_jenis: item.jenis_data?.id,
           kategori: item.jenis_data?.kelompok_data?.nama || 'N/A',
           layanan: item.jenis_data?.nama || 'N/A',
-          jumlahOrang: item.jumlah,
-          tanggalFull: item.tanggal,
-          jam: item.jam,
-          isVerified: item.is_verified,
+          jumlahOrang: Number(item.jumlah || 0),
           status: status
         };
       });
@@ -71,8 +57,6 @@ export default function UserDashboard() {
       fetchInitialData();
       fetchLaporan();
     });
-    
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
     const channel = supabase
       .channel('realtime-user-dashboard')
@@ -81,53 +65,52 @@ export default function UserDashboard() {
 
     return () => {
       cancelAnimationFrame(frameId);
-      clearInterval(timer);
       supabase.removeChannel(channel);
     };
   }, [fetchInitialData, fetchLaporan]);
 
-  // --- LOGIKA PERHITUNGAN DATA ---
-  const getStatsPerLayanan = useCallback((layananNama) => {
+  const getStatsPerLayanan = useCallback((layananNama, katNama) => {
     const items = laporanList.filter(l => l.layanan === layananNama);
-    const total = items.reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const tte = items.filter(i => i.status === 'Terbit TTE').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const proses = items.filter(i => i.status === 'Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const belum = items.filter(i => i.status === 'Belum Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    return { total, tte, proses, belum };
+    const total = items.reduce((acc, curr) => acc + curr.jumlahOrang, 0);
+    
+    const isExcluded = layananNama === 'Aktivasi IKD' || 
+                       layananNama === 'Blanko KTP' || 
+                       katNama === 'Informasi Umum';
+                       
+    const proses = isExcluded ? 0 : items.filter(i => i.status === 'Diproses').reduce((acc, curr) => acc + curr.jumlahOrang, 0);
+    const belum = isExcluded ? 0 : items.filter(i => i.status === 'Belum Diproses').reduce((acc, curr) => acc + curr.jumlahOrang, 0);
+    
+    return { total, proses, belum, isExcluded }; 
   }, [laporanList]);
 
   const dataGrafikKategori = useMemo(() => {
     return kategoriData.map(kat => ({
       name: kat.nama,
-      total: laporanList.filter(l => l.kategori === kat.nama).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0)
+      total: laporanList.filter(l => l.kategori === kat.nama).reduce((acc, curr) => acc + curr.jumlahOrang, 0)
     }));
   }, [kategoriData, laporanList]);
 
   const siPanduData = useMemo(() => {
-    const tteSum = laporanList.filter(i => i.status === 'Terbit TTE').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const prosesSum = laporanList.filter(i => i.status === 'Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const belumSum = laporanList.filter(i => i.status === 'Belum Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const prosesSum = laporanList.filter(i => i.status === 'Diproses').reduce((acc, curr) => acc + curr.jumlahOrang, 0);
+    const belumSum = laporanList.filter(i => i.status === 'Belum Diproses').reduce((acc, curr) => acc + curr.jumlahOrang, 0);
     
     return [
-      { name: 'Terbit TTE', value: tteSum, color: '#10b981' },
       { name: 'Diproses', value: prosesSum, color: '#3b82f6' },
       { name: 'Belum Diproses', value: belumSum, color: '#f59e0b' },
+      { name: 'Terbit TTE', value: 0, color: '#10b981' },
     ];
   }, [laporanList]);
 
   const sortedLayananData = useMemo(() => {
-    const orderPriority = {
-      'Informasi Umum': 1,
-      'Pencatatan Sipil': 2,
-      'Pendaftaran Penduduk': 3
-    };
-
     return [...layananData].sort((a, b) => {
       const katA = kategoriData.find(k => k.id === a.id_kelompok_data)?.nama || 'N/A';
       const katB = kategoriData.find(k => k.id === b.id_kelompok_data)?.nama || 'N/A';
+      const orderPriority = { 'Informasi Umum': 1, 'Pencatatan Sipil': 2, 'Pendaftaran Penduduk': 3 };
       return (orderPriority[katA] || 99) - (orderPriority[katB] || 99);
     });
   }, [layananData, kategoriData]);
+
+  const tooltipStyle = { backgroundColor: '#0d1117', border: '1px solid #475569', borderRadius: '10px', color: '#ffffff' };
 
   if (!mounted) return <div className="min-h-screen bg-[#0d1117]" />;
 
@@ -135,26 +118,15 @@ export default function UserDashboard() {
     <div className="min-h-screen w-full bg-[#0d1117] text-white font-sans overflow-y-auto">
       <main className="p-6 lg:p-12">
         <div className="max-w-[1440px] mx-auto space-y-8">
-          
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900/60 p-8 rounded-[2.5rem] border border-white/20 gap-4 shadow-2xl">
             <div className="space-y-3">
               <h1 className="text-4xl font-black text-white tracking-tighter uppercase tracking-[0.2em]">Public Monitoring</h1>
               <p className="text-cyan-400 font-bold text-sm tracking-widest uppercase">Layanan Informasi Real-time</p>
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white border border-slate-500">
-                  <Calendar size={16} className="text-cyan-400" /> {currentTime.toLocaleDateString('id-ID', { dateStyle: 'medium' })}
-                </span>
-                <span className="flex items-center gap-2 bg-emerald-500/30 px-4 py-2 rounded-xl text-xs font-mono text-emerald-300 border border-emerald-500/50">
-                  <Clock size={16} /> {currentTime.toLocaleTimeString('id-ID')}
-                </span>
-              </div>
             </div>
             <div className="bg-slate-800 border border-slate-500 p-6 rounded-3xl flex items-center gap-8 shadow-2xl">
                <div className="text-right">
                   <p className="text-xs text-cyan-200 font-black uppercase tracking-widest mb-1">Total Seluruh Ajuan</p>
-                  <p className="text-4xl font-black text-cyan-400 leading-none">
-                    {laporanList.reduce((a, b) => a + Number(b.jumlahOrang), 0)}
-                  </p>
+                  <p className="text-4xl font-black text-white leading-none">{laporanList.reduce((a, b) => a + b.jumlahOrang, 0)}</p>
                </div>
                <div className="bg-cyan-500/20 p-4 rounded-2xl text-cyan-400 border border-cyan-500/30">
                   <Activity size={32} />
@@ -171,9 +143,9 @@ export default function UserDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dataGrafikKategori}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#475569" vertical={false} />
-                    <XAxis dataKey="name" stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
-                    <YAxis stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{fill: 'rgba(255,255,255,0.1)'}} contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #22d3ee', borderRadius: '15px' }} />
+                    <XAxis dataKey="name" stroke="#ffffff" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
+                    <YAxis stroke="#ffffff" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{fill: 'rgba(255,255,255,0.1)'}} contentStyle={tooltipStyle} itemStyle={{color: '#ffffff'}} />
                     <Bar dataKey="total" fill="#22d3ee" radius={[10, 10, 0, 0]} barSize={60} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -190,8 +162,8 @@ export default function UserDashboard() {
                     <Pie data={siPanduData} innerRadius={60} outerRadius={85} paddingAngle={5} dataKey="value">
                       {siPanduData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #475569', borderRadius: '10px' }} />
-                    <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{paddingTop: '20px', fontSize: '11px', fontWeight: 'bold'}} />
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={{color: '#ffffff', fontWeight: 'bold'}} />
+                    <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: '900', color: '#ffffff' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -216,31 +188,26 @@ export default function UserDashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-600">
                   {sortedLayananData.map((lay) => {
-                    const stats = getStatsPerLayanan(lay.nama);
                     const katNama = kategoriData.find(k => k.id === lay.id_kelompok_data)?.nama || '-';
+                    const stats = getStatsPerLayanan(lay.nama, katNama);
                     
                     return (
                       <tr key={lay.id} className="hover:bg-white/[0.05] transition-all group">
                         <td className="p-8"><span className="font-black text-base text-white group-hover:text-cyan-400 uppercase">{lay.nama}</span></td>
-                        <td className="p-8 text-xs font-bold text-white uppercase">{katNama}</td>
+                        <td className="p-8 text-sm font-bold text-white uppercase">{katNama}</td>
                         <td className="p-8 text-center">
-                          <span className="px-6 py-2.5 rounded-2xl text-lg font-black font-mono bg-cyan-500/30 border border-cyan-400">
+                          <span className="px-6 py-2.5 rounded-2xl text-lg font-black font-mono bg-cyan-500/30 border border-cyan-400 text-white">
                             {stats.total}
                           </span>
                         </td>
                         <td className="p-8 text-right">
-                          {katNama === 'Informasi Umum' ? (
-                            <span className="text-slate-500 font-bold px-4">-</span>
-                          ) : (
+                          {!stats.isExcluded && (
                             <div className="flex justify-end gap-2 flex-wrap">
-                              <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-white uppercase bg-emerald-600 px-3 py-1.5 rounded-lg">
-                                <CheckCircle2 size={12} /> {stats.tte} Terbit TTE
+                              <span className="inline-flex items-center gap-1.5 text-xs font-black text-white uppercase bg-blue-600 px-3 py-1.5 rounded-lg shadow-lg">
+                                <Loader2 size={14} className="text-white" /> <span className="text-white">{stats.proses}</span> Diproses
                               </span>
-                              <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-white uppercase bg-blue-600 px-3 py-1.5 rounded-lg">
-                                <Loader2 size={12} className="animate-spin-slow" /> {stats.proses} Diproses
-                              </span>
-                              <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-white uppercase bg-amber-600 px-3 py-1.5 rounded-lg">
-                                <ShieldAlert size={12} /> {stats.belum} Belum
+                              <span className="inline-flex items-center gap-1.5 text-xs font-black text-white uppercase bg-amber-600 px-3 py-1.5 rounded-lg shadow-lg">
+                                <ShieldAlert size={14} className="text-white" /> <span className="text-white">{stats.belum}</span> Belum Diproses
                               </span>
                             </div>
                           )}
