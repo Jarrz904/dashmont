@@ -116,11 +116,18 @@ export default function DashboardPage() {
     }));
   }, [laporanList, kategoriData]);
 
-  const siPanduData = [
-    { name: 'Selesai', value: 45, color: '#10b981' },
-    { name: 'Proses', value: 25, color: '#3b82f6' },
-    { name: 'Antrian', value: 30, color: '#f59e0b' },
-  ];
+  // --- PERBAIKAN DIAGRAM LINGKARAN ---
+  const siPanduData = useMemo(() => {
+    const totalVerified = laporanList.filter(l => l.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const totalUnverified = laporanList.filter(l => !l.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    
+    return [
+      { name: 'Terverifikasi', value: totalVerified, color: '#10b981' },
+      { name: 'Belum', value: totalUnverified, color: '#f59e0b' },
+    ].filter(item => item.value > 0); // Sembunyikan jika tidak ada data
+  }, [laporanList]);
+
+  const totalAjuan = laporanList.reduce((a, b) => a + Number(b.jumlahOrang), 0);
 
   // --- HANDLERS ---
   const handleKategoriChange = (e) => {
@@ -209,7 +216,7 @@ export default function DashboardPage() {
     <div className="flex h-screen w-full bg-[#0d1117] overflow-hidden text-white font-sans relative">
       <Sidebar setCurrentPage={setCurrentPage} currentPage={currentPage} />
 
-      {/* TOAST */}
+      {/* TOAST, DELETE MODAL, VERIFY MODAL (Tetap sama) */}
       <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[200] w-full max-w-md px-4 pointer-events-none">
         {toast.show && (
           <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md animate-bounce pointer-events-auto ${toast.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-red-500/20 border-red-500/50 text-red-400'
@@ -220,7 +227,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* DELETE MODAL */}
       {deleteModal.show && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-3xl max-w-sm w-full shadow-2xl">
@@ -234,7 +240,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* VERIFY MODAL */}
       {verifyModal.show && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#161b22] border border-emerald-500/50 p-8 rounded-3xl max-w-md w-full shadow-2xl">
@@ -251,7 +256,7 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
         <div className="max-w-[1440px] mx-auto">
-
+          {/* HEADER (Tetap sama) */}
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-slate-900/80 p-6 rounded-3xl border border-white/20 gap-4 shadow-xl">
             <div className="space-y-2">
               <h1 className="text-3xl font-black text-white tracking-tighter uppercase tracking-[0.2em]">Sistem Monitoring</h1>
@@ -264,12 +269,11 @@ export default function DashboardPage() {
                 </span>
               </div>
             </div>
-
             <div className="bg-slate-800 border border-slate-500 p-4 rounded-2xl flex items-center gap-6 shadow-2xl">
               <div className="text-right">
                 <p className="text-xs text-white font-black uppercase tracking-widest mb-1">Total Pengajuan</p>
                 <p className="text-4xl font-black text-cyan-400 leading-none">
-                  {laporanList.reduce((a, b) => a + Number(b.jumlahOrang), 0)}
+                  {totalAjuan}
                 </p>
               </div>
               <div className="bg-cyan-500/20 p-3 rounded-xl text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
@@ -280,17 +284,13 @@ export default function DashboardPage() {
 
           {currentPage === 'Dashboard' ? (
             <div className="space-y-8 animate-in fade-in duration-700">
-
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* GRAFIK BAR (Tetap sama) */}
                 <div className="lg:col-span-2 bg-[#161b22] p-8 rounded-[2rem] border border-slate-600 shadow-2xl">
                   <div className="flex items-center justify-between mb-8">
                     <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-3">
                       <BarChart3 size={20} className="text-cyan-400" /> Grafik per Kelompok Data
                     </h3>
-                    <div className="flex gap-2 items-center">
-                      <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
-                      <span className="text-xs font-bold text-white">Satuan: ajuan</span>
-                    </div>
                   </div>
                   <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -298,19 +298,17 @@ export default function DashboardPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#475569" vertical={false} />
                         <XAxis dataKey="name" stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
                         <YAxis stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
-                        <Tooltip
-                          cursor={{ fill: 'rgba(255,255,255,0.08)' }}
-                          contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #22d3ee', borderRadius: '15px', color: '#fff' }}
-                        />
+                        <Tooltip cursor={{ fill: 'rgba(255,255,255,0.08)' }} contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #22d3ee', borderRadius: '15px', color: '#fff' }} />
                         <Bar dataKey="total" fill="#22d3ee" radius={[8, 8, 0, 0]} barSize={50} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
 
+                {/* PIE CHART TERBARU */}
                 <div className="bg-[#161b22] p-8 rounded-[2rem] border border-slate-600 shadow-2xl">
                   <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8 flex items-center gap-3">
-                    <PieIcon size={20} className="text-pink-400" /> Status Si Pandu (Online)
+                    <PieIcon size={20} className="text-pink-400" /> Verifikasi Status
                   </h3>
                   <div className="h-[250px] relative">
                     <ResponsiveContainer width="100%" height="100%">
@@ -331,14 +329,14 @@ export default function DashboardPage() {
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-20px]">
-                      <span className="text-2xl font-black text-white">100%</span>
-                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-tighter">Realtime</span>
+                      <span className="text-2xl font-black text-white">{totalAjuan}</span>
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-tighter">Total Ajuan</span>
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* SECTION: TABEL STATUS LAYANAN */}
+              
+               {/* SECTION: TABEL STATUS LAYANAN */}
               <div className="bg-[#161b22] rounded-[2rem] border border-slate-600 overflow-hidden shadow-2xl">
                 <div className="p-8 border-b border-slate-600 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>

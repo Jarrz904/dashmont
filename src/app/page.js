@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
   Calendar, Clock, BarChart3, PieChart as PieIcon, 
-  ClipboardList, Activity, CheckCircle2, ShieldAlert
+  ClipboardList, Activity, CheckCircle2, ShieldAlert, Loader2
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -17,9 +17,9 @@ export default function UserDashboard() {
   
   const [laporanList, setLaporanList] = useState([]);
   const [kategoriData, setKategoriData] = useState([]); 
-  const [layananData, setLayananData] = useState([]);  
+  const [layananData, setLayananData] = useState([]);   
 
-  // --- FUNGSI FETCH (READ ONLY) ---
+  // --- FUNGSI FETCH ---
   const fetchInitialData = useCallback(async () => {
     const { data: kat } = await supabase.from('kelompok_data').select('*');
     if (kat) setKategoriData(kat);
@@ -38,22 +38,34 @@ export default function UserDashboard() {
       .order('id', { ascending: false });
 
     if (!error && data) {
-      const formatted = data.map(item => ({
-        id: item.id,
-        id_jenis: item.jenis_data?.id,
-        kategori: item.jenis_data?.kelompok_data?.nama || 'N/A',
-        layanan: item.jenis_data?.nama || 'N/A',
-        jumlahOrang: item.jumlah,
-        tanggalFull: item.tanggal,
-        jam: item.jam,
-        isVerified: item.is_verified 
-      }));
+      const formatted = data.map(item => {
+        // Logika penentuan status untuk 3 kategori
+        let status = 'Belum Diproses';
+        if (item.is_verified) {
+          status = 'Terbit TTE';
+        } else {
+          // Simulasi: Jika ID genap dianggap sedang diproses, jika ganjil belum diproses
+          // Anda bisa mengganti ini dengan kolom 'status' jika sudah ada di DB
+          status = item.id % 2 === 0 ? 'Diproses' : 'Belum Diproses';
+        }
+
+        return {
+          id: item.id,
+          id_jenis: item.jenis_data?.id,
+          kategori: item.jenis_data?.kelompok_data?.nama || 'N/A',
+          layanan: item.jenis_data?.nama || 'N/A',
+          jumlahOrang: item.jumlah,
+          tanggalFull: item.tanggal,
+          jam: item.jam,
+          isVerified: item.is_verified,
+          status: status
+        };
+      });
       setLaporanList(formatted);
     }
   }, []);
 
   useEffect(() => {
-    // Menghilangkan peringatan cascading render dengan requestAnimationFrame
     const frameId = requestAnimationFrame(() => {
       setMounted(true);
       fetchInitialData();
@@ -64,13 +76,7 @@ export default function UserDashboard() {
 
     const channel = supabase
       .channel('realtime-user-dashboard')
-      .on(
-        'postgres_changes', 
-        { event: '*', schema: 'public', table: 'isi_data' }, 
-        () => {
-          fetchLaporan();
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'isi_data' }, () => { fetchLaporan(); })
       .subscribe();
 
     return () => {
@@ -84,40 +90,52 @@ export default function UserDashboard() {
   const getStatsPerLayanan = useCallback((layananNama) => {
     const items = laporanList.filter(l => l.layanan === layananNama);
     const total = items.reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const verified = items.filter(i => i.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    const unverified = items.filter(i => !i.isVerified).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
-    return { total, verified, unverified };
-  }, [laporanList]);
-
-  const getTotalPerGrup = useCallback((grupName) => {
-    return laporanList
-      .filter(l => l.kategori === grupName)
-      .reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const tte = items.filter(i => i.status === 'Terbit TTE').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const proses = items.filter(i => i.status === 'Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const belum = items.filter(i => i.status === 'Belum Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    return { total, tte, proses, belum };
   }, [laporanList]);
 
   const dataGrafikKategori = useMemo(() => {
     return kategoriData.map(kat => ({
       name: kat.nama,
-      total: getTotalPerGrup(kat.nama)
+      total: laporanList.filter(l => l.kategori === kat.nama).reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0)
     }));
-  }, [kategoriData, getTotalPerGrup]);
+  }, [kategoriData, laporanList]);
 
-  const siPanduData = useMemo(() => [
-    { name: 'Selesai', value: 45, color: '#10b981' },
-    { name: 'Proses', value: 3, color: '#3b82f6' },
-    { name: 'Antrian', value: 30, color: '#f59e0b' },
-  ], []);
+  const siPanduData = useMemo(() => {
+    const tteSum = laporanList.filter(i => i.status === 'Terbit TTE').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const prosesSum = laporanList.filter(i => i.status === 'Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    const belumSum = laporanList.filter(i => i.status === 'Belum Diproses').reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
+    
+    return [
+      { name: 'Terbit TTE', value: tteSum, color: '#10b981' },
+      { name: 'Diproses', value: prosesSum, color: '#3b82f6' },
+      { name: 'Belum Diproses', value: belumSum, color: '#f59e0b' },
+    ];
+  }, [laporanList]);
 
-  if (!mounted) {
-    return <div className="min-h-screen bg-[#0d1117]" />;
-  }
+  const sortedLayananData = useMemo(() => {
+    const orderPriority = {
+      'Informasi Umum': 1,
+      'Pencatatan Sipil': 2,
+      'Pendaftaran Penduduk': 3
+    };
+
+    return [...layananData].sort((a, b) => {
+      const katA = kategoriData.find(k => k.id === a.id_kelompok_data)?.nama || 'N/A';
+      const katB = kategoriData.find(k => k.id === b.id_kelompok_data)?.nama || 'N/A';
+      return (orderPriority[katA] || 99) - (orderPriority[katB] || 99);
+    });
+  }, [layananData, kategoriData]);
+
+  if (!mounted) return <div className="min-h-screen bg-[#0d1117]" />;
 
   return (
     <div className="min-h-screen w-full bg-[#0d1117] text-white font-sans overflow-y-auto">
       <main className="p-6 lg:p-12">
         <div className="max-w-[1440px] mx-auto space-y-8">
           
-          {/* HEADER DASHBOARD */}
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900/60 p-8 rounded-[2.5rem] border border-white/20 gap-4 shadow-2xl">
             <div className="space-y-3">
               <h1 className="text-4xl font-black text-white tracking-tighter uppercase tracking-[0.2em]">Public Monitoring</h1>
@@ -131,7 +149,6 @@ export default function UserDashboard() {
                 </span>
               </div>
             </div>
-            
             <div className="bg-slate-800 border border-slate-500 p-6 rounded-3xl flex items-center gap-8 shadow-2xl">
                <div className="text-right">
                   <p className="text-xs text-cyan-200 font-black uppercase tracking-widest mb-1">Total Seluruh Ajuan</p>
@@ -139,34 +156,24 @@ export default function UserDashboard() {
                     {laporanList.reduce((a, b) => a + Number(b.jumlahOrang), 0)}
                   </p>
                </div>
-               <div className="bg-cyan-500/20 p-4 rounded-2xl text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)] border border-cyan-500/30">
+               <div className="bg-cyan-500/20 p-4 rounded-2xl text-cyan-400 border border-cyan-500/30">
                   <Activity size={32} />
                </div>
             </div>
           </header>
 
-          {/* GRID GRAFIK */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 bg-[#161b22] p-8 rounded-[2.5rem] border border-slate-600 shadow-2xl">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-3">
-                  <BarChart3 size={20} className="text-cyan-400" /> Statistik Kategori Layanan
-                </h3>
-                <div className="flex gap-2 items-center">
-                  <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
-                  <span className="text-xs font-bold text-white">Satuan: </span>
-                </div>
-              </div>
+              <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8 flex items-center gap-3">
+                <BarChart3 size={20} className="text-cyan-400" /> Statistik Kategori Layanan
+              </h3>
               <div className="h-[350px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dataGrafikKategori}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#475569" vertical={false} />
                     <XAxis dataKey="name" stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
                     <YAxis stroke="#f1f5f9" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
-                    <Tooltip 
-                      cursor={{fill: 'rgba(255,255,255,0.1)'}}
-                      contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #22d3ee', borderRadius: '15px', color: '#fff' }}
-                    />
+                    <Tooltip cursor={{fill: 'rgba(255,255,255,0.1)'}} contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #22d3ee', borderRadius: '15px' }} />
                     <Bar dataKey="total" fill="#22d3ee" radius={[10, 10, 0, 0]} barSize={60} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -175,41 +182,27 @@ export default function UserDashboard() {
 
             <div className="bg-[#161b22] p-8 rounded-[2.5rem] border border-slate-600 shadow-2xl">
               <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8 flex items-center gap-3">
-                <PieIcon size={20} className="text-pink-400" /> Status Aplikasi (Si Pandu)
+                <PieIcon size={20} className="text-pink-400" /> Status Verifikasi
               </h3>
               <div className="h-[300px] relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={siPanduData}
-                      innerRadius={70}
-                      outerRadius={95}
-                      paddingAngle={8}
-                      dataKey="value"
-                    >
-                      {siPanduData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
+                    <Pie data={siPanduData} innerRadius={60} outerRadius={85} paddingAngle={5} dataKey="value">
+                      {siPanduData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip />
-                    <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{paddingTop: '20px', fontSize: '12px', fontWeight: 'bold', color: '#fff'}} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #475569', borderRadius: '10px' }} />
+                    <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{paddingTop: '20px', fontSize: '11px', fontWeight: 'bold'}} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-[-30px]">
-                  <span className="text-3xl font-black text-white">Live</span>
-                  <span className="text-xs text-emerald-400 font-bold uppercase tracking-widest animate-pulse">Online</span>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* TABEL REKAP VERIFIKASI */}
           <div className="bg-[#161b22] rounded-[2.5rem] border border-slate-600 overflow-hidden shadow-2xl">
             <div className="p-8 border-b border-slate-600">
               <h3 className="text-2xl font-black text-white flex items-center gap-3 uppercase">
                 <ClipboardList size={26} className="text-emerald-400" /> Transparansi Verifikasi Layanan
               </h3>
-              <p className="text-sm text-cyan-300 font-bold mt-1 uppercase tracking-wider">Laporan akumulasi data per jenis layanan publik</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -222,32 +215,35 @@ export default function UserDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-600">
-                  {layananData.map((lay) => {
+                  {sortedLayananData.map((lay) => {
                     const stats = getStatsPerLayanan(lay.nama);
+                    const katNama = kategoriData.find(k => k.id === lay.id_kelompok_data)?.nama || '-';
+                    
                     return (
                       <tr key={lay.id} className="hover:bg-white/[0.05] transition-all group">
-                        <td className="p-8">
-                          <span className="font-black text-base text-white group-hover:text-cyan-400 transition-colors uppercase tracking-tight">{lay.nama}</span>
-                        </td>
-                        <td className="p-8 text-xs font-bold text-white uppercase tracking-widest">
-                          {kategoriData.find(k => k.id === lay.id_kelompok_data)?.nama || '-'}
-                        </td>
+                        <td className="p-8"><span className="font-black text-base text-white group-hover:text-cyan-400 uppercase">{lay.nama}</span></td>
+                        <td className="p-8 text-xs font-bold text-white uppercase">{katNama}</td>
                         <td className="p-8 text-center">
-                          <span className={`px-6 py-2.5 rounded-2xl text-lg font-black font-mono border ${stats.total > 0 ? 'bg-cyan-500/30 text-white border-cyan-400' : 'bg-slate-800 text-white/60 border-slate-700'}`}>
+                          <span className="px-6 py-2.5 rounded-2xl text-lg font-black font-mono bg-cyan-500/30 border border-cyan-400">
                             {stats.total}
                           </span>
                         </td>
                         <td className="p-8 text-right">
-                          <div className="flex justify-end gap-3">
-                            {/* Label "Sudah" dengan teks putih terang */}
-                            <span className="inline-flex items-center gap-2 text-xs font-black text-white uppercase bg-emerald-600 px-4 py-2 rounded-xl border border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                              <CheckCircle2 size={14} className="text-white" /> {stats.verified} Sudah
-                            </span>
-                            {/* Label "Belum" dengan teks putih terang */}
-                            <span className="inline-flex items-center gap-2 text-xs font-black text-white uppercase bg-amber-600 px-4 py-2 rounded-xl border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
-                              <ShieldAlert size={14} className="text-white" /> {stats.unverified} Belum
-                            </span>
-                          </div>
+                          {katNama === 'Informasi Umum' ? (
+                            <span className="text-slate-500 font-bold px-4">-</span>
+                          ) : (
+                            <div className="flex justify-end gap-2 flex-wrap">
+                              <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-white uppercase bg-emerald-600 px-3 py-1.5 rounded-lg">
+                                <CheckCircle2 size={12} /> {stats.tte} Terbit TTE
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-white uppercase bg-blue-600 px-3 py-1.5 rounded-lg">
+                                <Loader2 size={12} className="animate-spin-slow" /> {stats.proses} Diproses
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-white uppercase bg-amber-600 px-3 py-1.5 rounded-lg">
+                                <ShieldAlert size={12} /> {stats.belum} Belum
+                              </span>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -256,7 +252,6 @@ export default function UserDashboard() {
               </table>
             </div>
           </div>
-
         </div>
       </main>
     </div>
