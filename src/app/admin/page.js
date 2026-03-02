@@ -144,15 +144,18 @@ export default function DashboardPage() {
   }, [form.kategori, kategoriData, layananData]);
 
   // LOGIKA PENGECUALIAN STATISTIK
-  const getStatsPerLayanan = (layananNama) => {
+  const getStatsPerLayanan = (layananNama, katNama) => {
     const items = laporanList.filter(l => l.layanan === layananNama);
-    const katNama = items.length > 0 ? items[0].kategori : '';
     const total = items.reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
 
-    const isExcluded = layananNama === 'Aktivasi IKD' ||
+    // Menentukan layanan yang dikecualikan dari status verifikasi
+    const isExcluded =
+      layananNama === 'Aktivasi IKD' ||
       layananNama === 'Blanko KTP' ||
       katNama === 'Informasi Umum';
 
+    // Jika di-exclude, maka verified dan unverified diatur ke 0 atau null
+    // agar UI tidak menampilkan komponen verifikasi
     const verified = isExcluded ? 0 : items
       .filter(i => i.isVerified)
       .reduce((acc, curr) => acc + Number(curr.jumlahOrang), 0);
@@ -183,7 +186,7 @@ export default function DashboardPage() {
     const totalTerbitTTE = 0;
 
     return [
-      { name: 'Di Proses', value: totalDiProses, color: '#3b82f6' },
+      { name: 'Sudah Di Proses', value: totalDiProses, color: '#3b82f6' },
       { name: 'Belum Di Proses', value: totalBelumDiProses, color: '#f59e0b' },
       { name: 'Terbit TTE', value: totalTerbitTTE, color: '#10b981' }
     ];
@@ -237,6 +240,7 @@ export default function DashboardPage() {
     }
   };
 
+
   const confirmDelete = async () => {
     const { error } = await supabase.from('isi_data').delete().eq('id', deleteModal.id);
     if (!error) {
@@ -267,6 +271,22 @@ export default function DashboardPage() {
       setVerifyModal({ show: false, data: null });
     }
   };
+
+  const genderStats = useMemo(() => {
+    // Ganti filter di bawah ini sesuai dengan cara Anda membedakan data Laki/Perempuan di database
+    // Contoh: asumsikan Anda memiliki kolom gender atau membedakan lewat jenis_data
+    const laki = 735127; // Ganti dengan logika filter Anda: laporanList.filter(...).reduce(...)
+    const perempuan = 715123;
+    const total = laki + perempuan;
+
+    return {
+      laki,
+      perempuan,
+      total,
+      persenLaki: ((laki / total) * 100).toFixed(1),
+      persenPerempuan: ((perempuan / total) * 100).toFixed(1)
+    };
+  }, [laporanList]);
 
   const handleVerify = (item) => {
     setVerifyModal({ show: true, data: item });
@@ -340,42 +360,62 @@ export default function DashboardPage() {
             <div className="bg-[#161b22] border border-slate-700 p-6 rounded-[2rem] flex items-center gap-6 shadow-2xl min-w-[450px]">
               <div className="flex-1 w-full text-center md:text-left">
                 <p className="text-xs text-slate-300 font-black uppercase tracking-widest mb-1 flex items-center justify-center md:justify-start gap-2">
-                  <Users size={14} className="text-cyan-400" /> Total Penduduk Kab. Tegal
+                  <Users size={14} className="text-cyan-400" /> Jumlah Penduduk
                 </p>
-                <p className="text-2xl font-black text-white mb-3">1.450.250 <span className="text-sm font-medium text-slate-400">Jiwa</span></p>
+                <p className="text-2xl font-black text-white mb-3">
+                  {genderStats.total.toLocaleString('id-ID')} <span className="text-sm font-medium text-slate-400">Jiwa</span>
+                </p>
+
                 <div className="flex justify-center md:justify-start gap-6">
                   <div>
                     <span className="text-[10px] text-slate-100 font-bold uppercase tracking-wider">Laki-laki</span>
-                    <p className="text-lg font-black text-blue-400">735.127 <span className="text-xs text-blue-200">(50.7%)</span></p>
+                    <p className="text-lg font-black text-blue-400">
+                      {genderStats.laki.toLocaleString('id-ID')} <span className="text-xs text-blue-200">({genderStats.persenLaki}%)</span>
+                    </p>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-100 font-bold uppercase tracking-wider">Perempuan</span>
-                    <p className="text-lg font-black text-pink-400">715.123 <span className="text-xs text-pink-200">(49.3%)</span></p>
+                    <p className="text-lg font-black text-pink-400">
+                      {genderStats.perempuan.toLocaleString('id-ID')} <span className="text-xs text-pink-200">({genderStats.persenPerempuan}%)</span>
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Diagram Lingkaran Kecil (Gender) */}
-              <div className="relative w-24 h-24">
+              {/* Diagram Lingkaran */}
+              <div className="relative w-40 h-40">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
+                    <Tooltip
+                      formatter={(value) => value.toLocaleString('id-ID')}
+                      contentStyle={{
+                        backgroundColor: '#0d1117', // Warna latar belakang gelap
+                        border: '1px solid #334155',
+                        borderRadius: '12px',
+                        color: '#ffffff',           // Warna teks putih
+                        fontSize: '14px',           // Ukuran font diperbesar
+                        fontWeight: 'bold'          // Menambah ketebalan agar lebih terlihat
+                      }}
+                      itemStyle={{ color: '#ffffff' }} // Memastikan item di dalam tooltip berwarna putih
+                    />
                     <Pie
                       data={[
-                        { name: 'Laki-laki', value: 870211, color: '#22d3ee' },
-                        { name: 'Perempuan', value: 842292, color: '#f472b6' }
+                        { name: 'Laki-laki', value: genderStats.laki },
+                        { name: 'Perempuan', value: genderStats.perempuan }
                       ]}
-                      innerRadius={25}
-                      outerRadius={40}
+                      innerRadius={45}
+                      outerRadius={65}
                       paddingAngle={5}
                       dataKey="value"
+                      stroke="none"
                     >
-                      <Cell fill="#22d3ee" stroke="none" />
-                      <Cell fill="#f472b6" stroke="none" />
+                      <Cell fill="#22d3ee" />
+                      <Cell fill="#f472b6" />
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <Users size={12} className="text-slate-600" />
+                  <Users size={24} className="text-slate-600" />
                 </div>
               </div>
             </div>
@@ -408,20 +448,17 @@ export default function DashboardPage() {
                         <Tooltip
                           contentStyle={{
                             backgroundColor: '#0d1117', // Warna latar belakang gelap
-                            border: '1px solid #334155',
+                            border: '5px solid #334155',
                             borderRadius: '12px',
                             color: '#ffffff',           // Warna teks putih
-                            fontSize: '14px',           // Ukuran font diperbesar
+                            fontSize: '19px',           // Ukuran font diperbesar
                             fontWeight: 'bold'          // Menambah ketebalan agar lebih terlihat
                           }}
                           itemStyle={{ color: '#ffffff' }} // Memastikan item di dalam tooltip berwarna putih
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-5xl font-black text-white">{totalAjuan}</span>
-                      <span className="text-xs text-slate-300 font-bold uppercase tracking-widest">Total Ajuan</span>
-                    </div>
+
                   </div>
                   <div className="flex justify-center gap-6 mt-4">
                     {siPanduData.map((item, i) => (

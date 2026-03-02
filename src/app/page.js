@@ -134,22 +134,21 @@ export default function UserDashboard() {
   }, [layananData, kategoriData]);
 
   // Statistik Gender untuk Header (dengan persentase)
-  const { genderData, totalPenduduk } = useMemo(() => {
-    const L = laporanList.filter(i => i.jk.toUpperCase() === 'L' || i.jk.toUpperCase() === 'LAKI-LAKI').reduce((a, b) => a + b.jumlahOrang, 0);
-    const P = laporanList.filter(i => i.jk.toUpperCase() === 'P' || i.jk.toUpperCase() === 'PEREMPUAN').reduce((a, b) => a + b.jumlahOrang, 0);
-    const total = L + P;
-
-    const percentL = total > 0 ? ((L / total) * 100).toFixed(1) : 0;
-    const percentP = total > 0 ? ((P / total) * 100).toFixed(1) : 0;
-
-    return {
-      totalPenduduk: total,
-      genderData: [
-        { name: 'Laki-laki', value: L, percent: percentL, color: '#3b82f6' },
-        { name: 'Perempuan', value: P, percent: percentP, color: '#ec4899' }
-      ]
-    };
-  }, [laporanList]);
+ const genderStats = useMemo(() => {
+  // Ganti filter di bawah ini sesuai dengan cara Anda membedakan data Laki/Perempuan di database
+  // Contoh: asumsikan Anda memiliki kolom gender atau membedakan lewat jenis_data
+  const laki = 735127; // Ganti dengan logika filter Anda: laporanList.filter(...).reduce(...)
+  const perempuan = 715123;
+  const total = laki + perempuan;
+  
+  return {
+    laki,
+    perempuan,
+    total,
+    persenLaki: ((laki / total) * 100).toFixed(1),
+    persenPerempuan: ((perempuan / total) * 100).toFixed(1)
+  };
+}, [laporanList]);
 
   const ajuanPerDesa = useMemo(() => {
     // Daftar kecamatan di Kab. Tegal
@@ -207,41 +206,68 @@ export default function UserDashboard() {
             </div>
 
             {/* Container Kependudukan Statis */}
-            <div className="bg-slate-800 border border-slate-500 p-6 rounded-3xl flex flex-col md:flex-row items-center gap-6 shadow-2xl min-w-[350px]">
-              <div className="flex-1 w-full text-center md:text-left">
-                <p className="text-xs text-slate-300 font-black uppercase tracking-widest mb-1 flex items-center justify-center md:justify-start gap-2">
-                  <Users size={14} className="text-cyan-400" /> Total Penduduk Kab. Tegal
-                </p>
-                <p className="text-2xl font-black text-white mb-3">1.450.250 <span className="text-sm font-medium text-slate-400">Jiwa</span></p>
-                <div className="flex justify-center md:justify-start gap-6">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Laki-laki</span>
-                    <p className="text-lg font-black text-blue-400">735.127 <span className="text-xs text-blue-200">(50.7%)</span></p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Perempuan</span>
-                    <p className="text-lg font-black text-pink-400">715.123 <span className="text-xs text-pink-200">(49.3%)</span></p>
-                  </div>
-                </div>
-              </div>
-              <div className="h-24 w-24">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Laki-laki', value: 735127, color: '#3b82f6' },
-                        { name: 'Perempuan', value: 715123, color: '#ec4899' }
-                      ]}
-                      innerRadius={25} outerRadius={45} dataKey="value" stroke="none"
-                    >
-                      <Cell fill="#3b82f6" />
-                      <Cell fill="#ec4899" />
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#ffffff', fontWeight: 'bold' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            <div className="bg-[#161b22] border border-slate-700 p-6 rounded-[2rem] flex items-center gap-6 shadow-2xl min-w-[450px]">
+                         <div className="flex-1 w-full text-center md:text-left">
+                           <p className="text-xs text-slate-300 font-black uppercase tracking-widest mb-1 flex items-center justify-center md:justify-start gap-2">
+                             <Users size={14} className="text-cyan-400" /> Jumlah Penduduk
+                           </p>
+                           <p className="text-2xl font-black text-white mb-3">
+                             {genderStats.total.toLocaleString('id-ID')} <span className="text-sm font-medium text-slate-400">Jiwa</span>
+                           </p>
+           
+                           <div className="flex justify-center md:justify-start gap-6">
+                             <div>
+                               <span className="text-[10px] text-slate-100 font-bold uppercase tracking-wider">Laki-laki</span>
+                               <p className="text-lg font-black text-blue-400">
+                                 {genderStats.laki.toLocaleString('id-ID')} <span className="text-xs text-blue-200">({genderStats.persenLaki}%)</span>
+                               </p>
+                             </div>
+                             <div>
+                               <span className="text-[10px] text-slate-100 font-bold uppercase tracking-wider">Perempuan</span>
+                               <p className="text-lg font-black text-pink-400">
+                                 {genderStats.perempuan.toLocaleString('id-ID')} <span className="text-xs text-pink-200">({genderStats.persenPerempuan}%)</span>
+                               </p>
+                             </div>
+                           </div>
+                         </div>
+           
+                         {/* Diagram Lingkaran */}
+                         <div className="relative w-40 h-40">
+                           <ResponsiveContainer width="100%" height="100%">
+                             <PieChart>
+                               <Tooltip
+                                 formatter={(value) => value.toLocaleString('id-ID')}
+                                 contentStyle={{
+                                   backgroundColor: '#0d1117', // Warna latar belakang gelap
+                                   border: '1px solid #334155',
+                                   borderRadius: '12px',
+                                   color: '#ffffff',           // Warna teks putih
+                                   fontSize: '14px',           // Ukuran font diperbesar
+                                   fontWeight: 'bold'          // Menambah ketebalan agar lebih terlihat
+                                 }}
+                                 itemStyle={{ color: '#ffffff' }} // Memastikan item di dalam tooltip berwarna putih
+                               />
+                               <Pie
+                                 data={[
+                                   { name: 'Laki-laki', value: genderStats.laki },
+                                   { name: 'Perempuan', value: genderStats.perempuan }
+                                 ]}
+                                 innerRadius={45}
+                                 outerRadius={65}
+                                 paddingAngle={5}
+                                 dataKey="value"
+                                 stroke="none"
+                               >
+                                 <Cell fill="#22d3ee" />
+                                 <Cell fill="#f472b6" />
+                               </Pie>
+                             </PieChart>
+                           </ResponsiveContainer>
+                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                             <Users size={24} className="text-slate-600" />
+                           </div>
+                         </div>
+                       </div>
           </header>
 
           {/* MIDDLE SECTION */}
@@ -270,11 +296,12 @@ export default function UserDashboard() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                     <Tooltip
+                    <Tooltip
+                     formatter={(value) => value.toLocaleString('id-ID')}
                       contentStyle={{
                         backgroundColor: '#0d1117', // Warna latar belakang gelap
-                        border: '1px solid #334155',
-                        borderRadius: '12px',
+                        border: '1px solid #334155', // Warna border yang lebih gelap
+                        borderRadius: '12px',        // Membulatkan sudut tooltip
                         color: '#ffffff',           // Warna teks putih
                         fontSize: '14px',           // Ukuran font diperbesar
                         fontWeight: 'bold'          // Menambah ketebalan agar lebih terlihat
