@@ -6,17 +6,50 @@ import DonutChartHero from '@/components/DonutChartHero';
 import StatCard from '@/components/StatCard';
 import { supabase } from '@/lib/supabase';
 import {
+  // Icon yang sudah ada sebelumnya
   Plus, Trash2, Calendar, Clock, Database, Layers,
   TrendingUp, BarChart3, Edit3, Save, X, CheckCircle2, AlertCircle,
   PieChart as PieIcon, ClipboardList, Activity, ShieldCheck, ShieldAlert, Loader2, MapPin, Users,
-  RefreshCw
+  RefreshCw, HelpCircle, LayoutDashboard, FileText, Settings, Mail,
+
+  // TAMBAHKAN icon sesuai database Anda di sini:
+  CreditCard,
+  Baby,
+  FileMinus,
+  Smartphone,
+  Smile,
+  Heart,
+  UserX
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend
 } from 'recharts';
 
+const IconMap = {
+  // Mapping sesuai data di screenshot database Anda
+  "users": Users,
+  "creditcard": CreditCard,
+  "baby": Baby,
+  "fileminus": FileMinus,
+  "smartphone": Smartphone,
+  "smile": Smile,
+  "filetext": FileText,
+  "heart": Heart,
+  "userx": UserX,
+  "mappin": MapPin,
+  "database": Database,
 
+  // Tambahan untuk menu lain
+  "dashboard": LayoutDashboard,
+  "setelan": Settings,
+  "surat": Mail
+};
+
+const renderDynamicIcon = (iconName, size = 20, className = "") => {
+  const IconComponent = IconMap[iconName?.toLowerCase()] || HelpCircle;
+  return <IconComponent size={size} className={className} />;
+};
 export default function DashboardPage() {
   const [currentPage, setCurrentPage] = useState('Dashboard');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -37,45 +70,61 @@ export default function DashboardPage() {
     layanan: 'Perekaman KTP',
     jumlahOrang: '',
   });
+  const [selectedKecamatan, setSelectedKecamatan] = useState("SEMUA KECAMATAN");
+  const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
 
-  const ajuanPerDesa = useMemo(() => {
-    // Daftar kecamatan di Kab. Tegal
-    const kecamatanData = [
-      { nama: "Adiwerna", desa: ["Adiwerna", "Kalimati", "Ujungrusi", "Pedeslohor"] },
-      { nama: "Balapulang", desa: ["Balapulang Wetan", "Tembongwah", "Karangjambu", "Banjaranyar"] },
-      { nama: "Bojong", desa: ["Bojong", "Dukuh Tengah", "Rembul", "Pucangluwuk"] },
-      { nama: "Dukuhwaru", desa: ["Dukuhwaru", "Gumayun", "Slarang Lor", "Singkil"] },
-      { nama: "Jatinegara", desa: ["Jatinegara", "Setu", "Argasari", "Tamansari"] },
-      { nama: "Kedungbanteng", desa: ["Kedungbanteng", "Tonggara", "Penujah", "Sidamulya"] },
-      { nama: "Lebaksiu", desa: ["Lebaksiu Lor", "Lebaksiu Kidul", "Yamansari", "Kesuben"] },
-      { nama: "Margasari", desa: ["Margasari", "Kaligayam", "Jatilawang", "Wanasari"] },
-      { nama: "Pagerbarang", desa: ["Pagerbarang", "Srengseng", "Randusari", "Kertaharja"] },
-      { nama: "Pangkah", desa: ["Pangkah", "Dermayyu", "Bogares Kidul", "Penyalahan"] },
-      { nama: "Slawi", desa: ["Slawi Kulon", "Slawi Wetan", "Dukuhwringin", "Trayeman"] },
-      { nama: "Suradadi", desa: ["Suradadi", "Purwahamba", "Gembongdadi", "Harjosari"] },
-      { nama: "Talang", desa: ["Talang", "Pasangan", "Kebasen", "Pegirikan"] },
-      { nama: "Tarub", desa: ["Tarub", "Mindaka", "Singamerta", "Brekat"] },
-      { nama: "Tegal Selatan", desa: ["Debong Lor", "Keturen", "Tunon", "Kalinyamat"] },
-      { nama: "Warureja", desa: ["Warureja", "Kedungkelor", "Sidamulya", "Banjaragung"] }
-    ];
+  const handleSort = (key, direction) => {
+    setSortConfig({ key, direction });
+  };
+  const sortedDesa = useMemo(() => {
+const kecamatanData = [
+  { nama: "ADIWERNA", desa: ["Adiwerna", "Tembok Banjaran", "Lumingser", "Pedeslohor", "Ujungrusi", "Harjosari", "Pecabean", "Tembok Kidul", "Tembok Lor", "Tembok Luwung", "Kaliwadas", "Gumalar", "Bersole", "Pagiyanten", "Penarukan"] },
+  { nama: "BALAPULANG", desa: ["Balapulang Kulon", "Balapulang Wetan", "Batuagung", "Banjaranyar", "Tembongwah", "Danareja", "Cibunar", "Bukateja", "Kaliwungu", "Karangjambu", "Pamiritan", "Seseupan", "Wotgalih"] },
+  { nama: "BOJONG", desa: ["Bojong", "Rembul", "Tuwel", "Suniarsih", "Dukuhtengah", "Lengkong", "Batuunyana", "Buniwah", "Kalisari", "Karangmulyo", "Cikura", "Kedawung"] },
+  { nama: "BUMIJAWA", desa: ["Bumijawa", "Guci", "Cempaka", "Sumbaga", "Sokatengah", "Sigedong", "Batunyana", "Begawat", "Carul", "Cintamanik", "Jejeg", "mulyajaya", "Prawpagan", "Sukasari", "Traju"] },
+  { nama: "DUKUHTURI", desa: ["Dukuhturi", "Sidakaton", "Sidapurna", "Pagongan", "Kupu", "Lawatan", "Pengabean", "Bandasari", "Debong Wetan", "Grogol", "Kepandean", "Ketikerep", "Panggung"] },
+  { nama: "DUKUHWARU", desa: ["Dukuhwaru", "Slarang Lor", "Gumayun", "Blubuk", "Sindang", "Pedagangan", "Kabunan", "Bulusari", "Gadung", "Kaligayam", "Sidadadi"] },
+  { nama: "JATINEGARA", desa: ["Jatinegara", "Cerih", "Gantungan", "Wotgalih", "Tamansari", "Lebakwangi", "Argasari", "Capar", "Dukuhbangsa", "Kedungwungu", "Mulyoharjo", "Penyalin", "Sumurpanggang"] },
+  { nama: "KEDUNGBANTENG", desa: ["Kedungbanteng", "Tonggara", "Penujah", "Karanganyar", "Margamulyo", "Semedo", "Dukuhjati", "Kebiringin", "Sumingkir"] },
+  { nama: "KRAMAT", desa: ["Mejasem Barat", "Mejasem Timur", "Kramat", "Dampyak", "Kemantran", "Plumbungan", "Bongkok", "Babakan", "Dinuk", "Jatilawang", "Kertaharja", "Kertayasa", "Munjul", "Padaharja", "Tanjungharja"] },
+  { nama: "LEBAKSIU", desa: ["Lebaksiu Lor", "Lebaksiu Kidul", "Yamansari", "Kajen", "Kesuben", "Tegalandong", "Babadan", "Dukuhdamu", "Dukuhtengah", "Kambangan", "Lebakgowah", "Pendawa", "Surentumyang"] },
+  { nama: "MARGASARI", desa: ["Margasari", "Pakuja", "Jatilawang", "Kaligayam", "Wanasari", "Karangdawa", "Dukuh Tengah", "Kalisalak", "Marga Ayu", "Pekiringan", "Prupuk Selatan", "Prupuk Utara"] },
+  { nama: "PAGERBARANG", desa: ["Pagerbarang", "Randusari", "Srengseng", "Kertaharja", "Sidomulyo", "Mulyoharjo", "Jatiwangi", "Karanganyar", "Margasari", "Rajegwesi", "Semboja"] },
+  { nama: "PANGKAH", desa: ["Pangkah", "Bogares Kidul", "Bogares Lor", "Dermayu", "Talok", "Penyalahan", "Curug", "Bedug", "Dukuhjati", "Grobog Kulon", "Grobog Wetan", "Jenggawur", "Kendalserut", "Pener", "Rancawiru"] },
+  { nama: "SLAWI", desa: ["Slawi Kulon", "Slawi Wetan", "Kudaile", "Trayeman", "Pakibar", "Dukuhwringin", "Kalisapu", "Dukuhsalam", "Kagok", "Procot"] },
+  { nama: "SURADADI", desa: ["Suradadi", "Purwahamba", "Sidantaka", "Gembongdadi", "Harjosari", "Kertasari", "Jatibogor", "Boja", "Karangmulya", "Karangwuluh", "Sidoharjo"] },
+  { nama: "TALANG", desa: ["Talang", "Pesayangan", "Pegirikan", "Kebasen", "Gembong Kulon", "Langenharjo", "Wangandawa", "Bengle", "Cangkring", "Dawuhan", "Dukuhmalang", "Gembong Wetan", "Kajen", "Kaladawa", "Pasangan", "Tegalwangi"] },
+  { nama: "TARUB", desa: ["Tarub", "Mindaka", "Lebeteng", "Kedungbungkus", "Singamerta", "Bulakwaru", "Bumiharja", "Bregas", "Kabukan", "Kalirayu", "Karangmangu", "Kedokansayang", "Margapadang", "Purbasana", "Setu"] },
+  { nama: "WARUREJA", desa: ["Warureja", "Kedungkelor", "Sukareja", "Banjaragung", "Sidamulya", "Kendayakan", "Banjaranyar", "Demangharjo", "Kedungjati", "Kreman", "Rangimulya", "Sigentong"] }
+];
 
-    // Membuat 287 data dengan distribusi nama yang lebih variatif
-    return Array.from({ length: 287 }, (_, i) => {
-      const kecIndex = i % kecamatanData.length;
-      const kecamatanObj = kecamatanData[kecIndex];
-      // Mengambil nama desa dari daftar atau membuat label otomatis jika melebihi list
-      const namaDesa = kecamatanObj.desa[i % kecamatanObj.desa.length] + " " + (i > 63 ? `(${Math.floor(i / 4)})` : "");
-
-      // Perhitungan nilai deterministik
-      const hash = (i * 16807) % 2147483647;
-
-      return {
-        namaDesa: namaDesa,
-        kecamatan: kecamatanObj.nama,
-        total: (hash % 500) + 10
-      };
+    // 1. Flattening data
+    let flatData = [];
+    kecamatanData.forEach((kec) => {
+      kec.desa.forEach((namaDesa) => {
+        const seed = namaDesa.length + kec.nama.length;
+        const totalFake = (seed * 17) % 300 + 50;
+        flatData.push({
+          namaDesa: namaDesa,
+          kecamatan: kec.nama,
+          total: totalFake
+        });
+      });
     });
-  }, []);
+
+    // 2. Filter
+    let filtered = (selectedKecamatan === "SEMUA KECAMATAN")
+      ? flatData
+      : flatData.filter(d => d.kecamatan === selectedKecamatan);
+
+    // 3. Sorting
+    return [...filtered].sort((a, b) => {
+      if (sortConfig.key === 'total') {
+        return sortConfig.direction === 'asc' ? a.total - b.total : b.total - a.total;
+      }
+      return a.namaDesa.localeCompare(b.namaDesa);
+    });
+  }, [selectedKecamatan, sortConfig]);
 
   // --- LOGIKA PENGURUTAN LAYANAN ---
   const sortedLayananData = useMemo(() => {
@@ -513,6 +562,7 @@ export default function DashboardPage() {
                       <ClipboardList size={26} className="text-emerald-400" /> Pelayanan
                     </h3>
                   </div>
+
                   <div className="overflow-x-auto flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#0d1117] [&::-webkit-scrollbar-thumb]:bg-slate-700">
                     <table className="w-full text-left relative">
                       <thead className="sticky top-0 bg-[#0d1117] text-white text-xs font-black uppercase tracking-widest z-10 shadow-md">
@@ -526,13 +576,19 @@ export default function DashboardPage() {
                       <tbody className="divide-y divide-slate-600">
                         {sortedLayananData.map((lay) => {
                           const katNama = kategoriData.find(k => k.id === lay.id_kelompok_data)?.nama || '-';
-                          // Fungsi Anda mengembalikan objek: { total, verified, unverified, isExcluded }
                           const stats = getStatsPerLayanan(lay.nama, katNama);
 
                           return (
                             <tr key={lay.id} className="hover:bg-white/[0.05] transition-all group">
                               <td className="p-6 lg:p-8">
-                                <span className="font-black text-sm lg:text-base text-white group-hover:text-cyan-400 uppercase">{lay.nama}</span>
+                                <div className="flex items-center gap-4">
+                                  <div className="p-2 bg-slate-800 rounded-lg group-hover:bg-cyan-900/40 transition-colors">
+                                    {renderDynamicIcon(lay.icon, 20, "text-slate-300 group-hover:text-cyan-400")}
+                                  </div>
+                                  <span className="font-black text-sm lg:text-base text-white group-hover:text-cyan-400 uppercase">
+                                    {lay.nama}
+                                  </span>
+                                </div>
                               </td>
                               <td className="p-6 lg:p-8 text-xs lg:text-sm font-bold text-slate-100 uppercase">{katNama}</td>
                               <td className="p-6 lg:p-8 text-center">
@@ -543,15 +599,13 @@ export default function DashboardPage() {
                               <td className="p-6 lg:p-8 text-right">
                                 {!stats.isExcluded && (
                                   <div className="flex justify-end gap-2 flex-wrap">
-                                    {/* Perbaikan: Gunakan stats.verified sesuai dengan return fungsi Anda */}
                                     <span className="inline-flex items-center gap-1.5 text-[10px] lg:text-xs font-black text-white uppercase bg-blue-600 px-3 py-1.5 rounded-lg shadow-lg">
-                                      <Loader2 size={14} className="text-white" />
-                                      <span className="text-white">{stats.verified || 0}</span> Sudah
+                                      <Loader2 size={14} className="animate-spin text-white" />
+                                      <span>{stats.verified || 0}</span> Sudah
                                     </span>
-                                    {/* Perbaikan: Gunakan stats.unverified sesuai dengan return fungsi Anda */}
                                     <span className="inline-flex items-center gap-1.5 text-[10px] lg:text-xs font-black text-white uppercase bg-amber-600 px-3 py-1.5 rounded-lg shadow-lg">
                                       <ShieldAlert size={14} className="text-white" />
-                                      <span className="text-white">{stats.unverified || 0}</span> Belum
+                                      <span>{stats.unverified || 0}</span> Belum
                                     </span>
                                   </div>
                                 )}
@@ -565,42 +619,109 @@ export default function DashboardPage() {
                 </div>
 
                 {/* TABEL AJUAN PER DESA (Sekarang Lebar Sama dengan Tabel Pelayanan) */}
-                <div className="bg-[#161b22] rounded-[2.5rem] border border-slate-600 overflow-hidden shadow-2xl flex flex-col h-[600px]">
-                  <div className="p-8 border-b border-slate-600/50 bg-[#0d1117]/50">
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-black text-white flex items-center gap-3 uppercase tracking-tight">
-                        <MapPin size={26} className="text-red-400" /> Ajuan Per Desa
-                      </h3>
-                      <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase ml-9">
-                        Data 287 Desa & Kel. Kab. Tegal
-                      </p>
+                <div className="lg:col-span-1 bg-[#161b22] rounded-[2.5rem] border border-slate-600 overflow-hidden shadow-2xl flex flex-col h-[600px] transition-all duration-300 hover:border-slate-500">
+                  {/* Header Section */}
+                  <div className="p-8 border-b border-slate-600/50 bg-[#0d1117]/50 backdrop-blur-sm z-20">
+                    <div className="space-y-5">
+                      <div className="space-y-1">
+                        <h3 className="text-2xl font-black text-white flex items-center gap-3 uppercase tracking-tight">
+                          <MapPin size={26} className="text-red-400 animate-pulse" />
+                          Ajuan Per Desa
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase ml-9 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-cyan-500"></span>
+                          Data 287 Desa & Kel. Kab. Tegal
+                        </p>
+                      </div>
+
+                      {/* Filter & Sort Controls */}
+                      <div className="ml-9 flex flex-wrap gap-2 items-center">
+                        <div className="relative group">
+                          <select
+                            value={selectedKecamatan}
+                            onChange={(e) => setSelectedKecamatan(e.target.value)}
+                            className={`appearance-none bg-[#0d1117] px-4 py-2 pr-10 rounded-xl text-[10px] font-black border transition-all cursor-pointer outline-none tracking-wider
+              ${selectedKecamatan !== "SEMUA KECAMATAN"
+                                ? 'border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
+                                : 'border-slate-700 text-slate-400 group-hover:border-slate-500'}`}
+                          >
+                            <option value="SEMUA KECAMATAN">SEMUA KECAMATAN</option>
+                            <option value="ADIWERNA">ADIWERNA</option>
+                            <option value="BALAPULANG">BALAPULANG</option>
+                            <option value="BOJONG">BOJONG</option>
+                            <option value="BUMIJAWA">BUMIJAWA</option>
+                            <option value="DUKUHWARU">DUKUHWARU</option>
+                            <option value="DUKUHTURI">DUKUHTURI</option>
+                            <option value="JATINEGARA">JATINEGARA</option>
+                            <option value="KRAMAT">KRAMAT</option>
+                            <option value="KEDUNGBANTENG">KEDUNGBANTENG</option>
+                            <option value="LEBAKSIU">LEBAKSIU</option>
+                            <option value="MARGASARI">MARGASARI</option>
+                            <option value="PAGERBARANG">PAGERBARANG</option>
+                            <option value="PANGKAH">PANGKAH</option>
+                            <option value="SLAWI">SLAWI</option>
+                            <option value="SURADADI">SURADADI</option>
+                            <option value="TALANG">TALANG</option>
+                            <option value="TARUB">TARUB</option>
+                            <option value="WARUREJA">WARUREJA</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+                            <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                          </div>
+                        </div>
+
+                        <div className="flex bg-[#0d1117] p-1 rounded-xl border border-slate-700">
+                          <button
+                            onClick={() => handleSort('total', 'desc')}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all ${sortConfig.key === 'total' && sortConfig.direction === 'desc' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-white'}`}
+                          >
+                            TERBANYAK
+                          </button>
+                          <button
+                            onClick={() => handleSort('total', 'asc')}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all ${sortConfig.key === 'total' && sortConfig.direction === 'asc' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-white'}`}
+                          >
+                            TERKECIL
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#0d1117] [&::-webkit-scrollbar-thumb]:bg-slate-700 hover:[&::-webkit-scrollbar-thumb]:bg-slate-600">
+                  {/* Table Section */}
+                  <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#0d1117] [&::-webkit-scrollbar-thumb]:bg-slate-700 hover:[&::-webkit-scrollbar-thumb]:bg-cyan-900 transition-colors">
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-[#161b22] text-slate-100 text-[10px] font-black uppercase tracking-widest z-10 shadow-sm">
-                        <tr>
-                          <th className="p-5 border-b border-slate-100">Nama Desa</th>
-                          <th className="p-5 border-b border-slate-100">Kecamatan</th>
-                          <th className="p-5 border-b border-slate-100 text-center">Ajuan</th>
+                      <thead className="sticky top-0 z-30 shadow-xl">
+                        <tr className="bg-[#161b22]">
+                          <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-700/50">Nama Desa</th>
+                          <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-700/50">Kecamatan</th>
+                          <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center border-b border-slate-700/50">Ajuan</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {ajuanPerDesa.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-cyan-950/10 transition-all duration-200 group">
-                            <td className="p-5 text-sm font-bold text-white capitalize group-hover:text-cyan-400 transition-colors">
-                              {item.namaDesa.toLowerCase()}
+                      <tbody className="divide-y divide-slate-800/50">
+                        {sortedDesa.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-cyan-950/20 transition-all duration-200 group border-transparent">
+                            <td className="p-5">
+                              <span className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors block">
+                                {item.namaDesa.toUpperCase()}
+                              </span>
                             </td>
-                            <td className="p-5 text-sm font-bold text-white capitalize">
-                              {item.kecamatan.toLowerCase()}
+                            <td className="p-5">
+                              <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-200 transition-colors uppercase">
+                                {item.kecamatan}
+                              </span>
                             </td>
-                            <td className="p-5 text-center font-mono font-black text-white relative">
+                            <td className="p-5 text-center relative overflow-hidden">
+                              <div className="relative z-10 font-mono font-black text-white text-base">
+                                {item.total}
+                              </div>
                               <div
-                                className="absolute left-0 bottom-0 h-[2px] bg-cyan-500/30 transition-all duration-500"
-                                style={{ width: `${Math.min((item.total / 500) * 100, 100)}%` }}
+                                className="absolute left-0 bottom-0 h-full bg-cyan-500/10 group-hover:bg-cyan-500/20 transition-all duration-500 border-r border-cyan-500/30"
+                                style={{
+                                  width: `${Math.min((item.total / 500) * 100, 100)}%`,
+                                  zIndex: 1
+                                }}
                               />
-                              {item.total}
                             </td>
                           </tr>
                         ))}
